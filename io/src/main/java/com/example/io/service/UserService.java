@@ -8,31 +8,36 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
-import java.io.*;
-import java.util.Arrays;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
+    private String pathToReadUsers = "C:\\Users\\Vladyslav\\Desktop\\projectFile.txt";
+    private String pathToWriteUsers = "C:\\Users\\Vladyslav\\Desktop\\UsersList.txt";
+    private int numberOfSlash = 3;
     private final UserRepository userRepository;
 
     public void operationWithUser() {
-        try (BufferedReader bufferedReader = new BufferedReader(
-                new FileReader("C:\\Users\\Vladyslav\\Desktop\\projectFile.txt"))) {
+        try {
+            List<String> userList = Files.lines(Path.of(pathToReadUsers)).toList();
             String userFromFile;
-            while ((userFromFile = bufferedReader.readLine()) != null) {
+            for (String line : userList) {
+                userFromFile = line;
                 checkFileIsEmpty(userFromFile);
                 checkSlash(userFromFile);
                 findIndex(userFromFile);
-                String[] split = userFromFile.split("/");
+                List<String> split = List.of(userFromFile.split("/"));
                 UserEntity user = new UserEntity();
-                user.setName(split[0]);
-                user.setSurname(split[1]);
-                user.setNickname(split[2]);
-                user.setPhoneNumber(split[3]);
-//                System.out.println(Arrays.toString(split));
+                user.setName(split.get(0));
+                user.setSurname(split.get(1));
+                user.setNickname(split.get(2));
+                user.setPhoneNumber(split.get(3));
                 userRepository.save(user);
             }
         } catch (IOException exception) {
@@ -42,7 +47,7 @@ public class UserService {
 
     private void checkSlash(String line) {
         int count = StringUtils.countMatches(line, '/');
-        if (count != 3) {
+        if (count != numberOfSlash) {
             throw new NumberFieldException();
         }
     }
@@ -55,41 +60,35 @@ public class UserService {
 
     private void findIndex(String line) {
         StringBuilder builder = new StringBuilder(line);
-        System.out.println(builder);
-        char[] str;
-        for (int i = 0; i <= 3; i++) {
-            if (i != 3) {
-                str = builder.substring(0, builder.indexOf("/")).toCharArray();
+        String elementsOfLine;
+        for (int i = 0; i <= numberOfSlash; i++) {
+            if (i != numberOfSlash) {
+                elementsOfLine = builder.substring(0, builder.indexOf("/"));
                 builder.delete(0, builder.indexOf("/") + 1);
-                for (int j = 0; j < str.length; j++) {
-                    if (!Character.isAlphabetic(str[j])) {
-                        throw new RuntimeException("Invalid symbol characters");
-                    }
+                if (!StringUtils.isAlpha(elementsOfLine)) {
+                    throw new RuntimeException("Invalid symbol characters");
                 }
             } else {
-                str = builder.substring(0).toCharArray();
-                for (int k = 0; k < str.length; k++) {
-                    if (!Character.isDigit(str[k])) {
-                        throw new RuntimeException("Invalid number characters");
-                    }
+                if (!StringUtils.isNumeric(builder)) {
+                    throw new RuntimeException("Invalid number characters");
                 }
             }
-            System.out.println(Arrays.toString(str));
         }
     }
 
     public void getUsers() {
         List<UserEntity> userList = userRepository.findAll();
-        int amount = userList.size();
-        try (BufferedWriter writer = new BufferedWriter(
-                new FileWriter("C:\\Users\\Vladyslav\\Desktop\\UsersList.txt"))) {
-            writer.write(amount + "\n");
+        String amount = String.valueOf(userList.size());
+        Path path = Path.of(pathToWriteUsers);
+        try {
+            Files.createFile(path);
+            Files.writeString(path, amount + "\n", StandardOpenOption.APPEND);
             for (UserEntity user : userList) {
-                writer.write(
-                        user.getName() + " "
-                                + user.getSurname() + " "
-                                + user.getNickname() + " "
-                                + user.getPhoneNumber() + "\n");
+                String users = user.getName() + " "
+                        + user.getSurname() + " "
+                        + user.getNickname() + " "
+                        + user.getPhoneNumber() + "\n";
+                Files.writeString(path, users, StandardOpenOption.APPEND);
             }
         } catch (IOException exception) {
             exception.getMessage();
